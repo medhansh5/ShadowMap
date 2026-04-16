@@ -3,6 +3,16 @@ from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from datetime import datetime
+import os
+
+# Get URL from environment, or default to local SQLite for development
+uri = os.environ.get('DATABASE_URL', 'sqlite:///shadowmap.db')
+
+# Fix for Render/Heroku which might provide 'postgres://' (SQLAlchemy needs 'postgresql://')
+if uri.startswith("postgres://"):
+    uri = uri.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = uri
 
 app = Flask(__name__)
 CORS(app)
