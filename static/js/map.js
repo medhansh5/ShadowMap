@@ -37,10 +37,11 @@ fetch('/roads')
         // 6. Loop through coordinates and draw circles
         data.forEach(point => {
             L.circle([point.lat, point.lng], {
-                color: colors[point.quality],
-                fillColor: colors[point.quality],
-                fillOpacity: 0.6,
-                radius: 15 
+                color: '#ffffff',
+                fillColor:  "#ff0000",
+                fillOpacity: 0.8,
+                radius: 4,
+                weight: 1
             }).addTo(map);
         });
     })
