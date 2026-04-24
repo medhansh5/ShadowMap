@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from datetime import datetime
+from potholenet import classify_data
 
 # 1. Initialize the Flask App object FIRST
 app = Flask(__name__)
@@ -77,6 +78,100 @@ def get_roads():
         return jsonify([s.to_dict() for s in segments])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/telemetry', methods=['POST'])
+def process_telemetry():
+    """
+    Process real-time telemetry data and classify road quality.
+    Accepts sensor data, classifies using PotholeNet, and saves pothole detections.
+    """
+    try:
+        # Validate incoming JSON
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data received"}), 400
+        
+        # Required fields validation
+        required_fields = ['lat', 'lng', 'accel_z']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"error": f"Missing required fields: {missing_fields}"}), 400
+        
+        # Validate data types and ranges
+        try:
+            lat = float(data['lat'])
+            lng = float(data['lng'])
+            accel_z = float(data['accel_z'])
+            
+            # Basic coordinate validation
+            if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+                return jsonify({"error": "Invalid coordinates"}), 400
+                
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid data types for coordinates or acceleration"}), 400
+        
+        # Classify the sensor data
+        classification_result = classify_data(data)
+        
+        # If pothole detected, save to database
+        if classification_result['classification'] == 'POTHOLE':
+            try:
+                # Map classification to quality score (2 = pothole)
+                quality_score = 2
+                
+                new_segment = RoadSegment(
+                    latitude=lat,
+                    longitude=lng,
+                    quality_score=quality_score
+                )
+                
+                db.session.add(new_segment)
+                db.session.commit()
+                
+                # Detailed logging for verification
+                print(f"[DATABASE COMMIT] Pothole saved - Lat: {lat} (type: {type(lat).__name__}), "
+                      f"Lng: {lng} (type: {type(lng).__name__}), "
+                      f"Severity: {classification_result['severity_score']} (type: {type(classification_result['severity_score']).__name__}), "
+                      f"Quality Score: {quality_score}")
+                
+                return jsonify({
+                    "status": "success",
+                    "classification": classification_result,
+                    "saved_to_db": True,
+                    "message": "Pothole detected and saved",
+                    "debug": {
+                        "coordinates": {"lat": lat, "lng": lng},
+                        "severity_score": classification_result['severity_score'],
+                        "confidence": classification_result['confidence'],
+                        "database_quality_score": quality_score
+                    }
+                }), 201
+                
+            except Exception as db_error:
+                db.session.rollback()
+                print(f"Database error: {db_error}")
+                return jsonify({
+                    "error": "Failed to save pothole data",
+                    "classification": classification_result
+                }), 500
+        
+        # For smooth roads, just return classification without saving
+        return jsonify({
+            "status": "success",
+            "classification": classification_result,
+            "saved_to_db": False,
+            "message": "Smooth road detected",
+            "debug": {
+                "coordinates": {"lat": lat, "lng": lng},
+                "severity_score": classification_result['severity_score'],
+                "confidence": classification_result['confidence'],
+                "note": "Not saved to database - only potholes are stored"
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Telemetry processing error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
     # Use environment PORT for Render compatibility
