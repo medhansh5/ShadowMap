@@ -181,7 +181,7 @@ Use the Virtual Test Bench to calibrate PotholeNet sensitivity:
 
 ## 📄 License
 
-This project is part of the ShadowMap road quality monitoring initiative.
+This project is part of the PotholeNet road quality monitoring initiative under the MIT license.
 
 ## 🤝 Contributing
 
