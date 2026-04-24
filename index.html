@@ -14,7 +14,86 @@
     <link rel="stylesheet" href="./static/css/styles.css">
 </head>
 <body>
-    <div id="map"></div>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="tagline">Project ShadowMap // 2026</div>
+        <h1 class="hero-title">Mapping the <span style="background: linear-gradient(135deg, #00d4ff 0%, #4a90e2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Unseen.</span></h1>
+        <p class="hero-subtitle">
+            Turning a 350cc Royal Enfield into a mobile data-gathering station to predict road hazards before they cause accidents.
+        </p>
+        <div class="button-group">
+            <a href="#build" class="btn btn-primary">View Build Log</a>
+            <a href="https://github.com/medhansh5/ShadowMap" class="btn btn-secondary" target="_blank">Source Code</a>
+        </div>
+    </section>
+
+    <!-- Hardware Integration Section -->
+    <section class="section">
+        <h2 class="section-title">Hardware Integration</h2>
+        <div class="cards-grid">
+            <div class="card">
+                <h3 class="card-title">The Core System</h3>
+                <p class="card-content">
+                    The heart of ShadowMap is an <strong>MPU6050</strong> 6-axis accelerometer mounted directly to the frame. I engineered a custom dampening mount to ensure the engine's 350cc vibrations don't drown out the road data.
+                </p>
+                <ul class="card-list">
+                    <li>Arduino/ESP32 Controller</li>
+                    <li>Neo-6M GPS Module</li>
+                    <li>Custom Vibration Filter</li>
+                    <li>Real-time Data Processing</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3 class="card-title">The Baron Rig</h3>
+                <div style="background: rgba(0, 212, 255, 0.1); border-radius: 12px; padding: 1rem; margin-top: 1rem;">
+                    <img src="assets/bike.jpg" alt="The Baron - ShadowMap Rig" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px;">
+                </div>
+                <p class="card-content" style="margin-top: 1rem; font-size: 0.9rem; color: #888;">
+                    My 350cc Royal Enfield "The Baron" equipped with the ShadowMap sensor array
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Telemetry Pipeline Section -->
+    <section class="section">
+        <h2 class="section-title">Telemetry Pipeline</h2>
+        <div class="cards-grid">
+            <div class="card">
+                <h3 class="card-title">Data Processing</h3>
+                <p class="card-content">
+                    Data streams via a Python bridge into a PostgreSQL database. The magic happens in the cleaning phase, where I apply a <strong>High-Pass Filter</strong> to isolate pothole impacts from road noise.
+                </p>
+                <ul class="card-list">
+                    <li>Real-time Data Streaming</li>
+                    <li>High-Pass Filtering</li>
+                    <li>PostgreSQL Backend</li>
+                    <li>Machine Learning Analysis</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3 class="card-title">Signal Analysis</h3>
+                <div style="background: rgba(244, 162, 97, 0.1); border-radius: 12px; padding: 1rem; margin-top: 1rem;">
+                    <img src="assets/map.jpg" alt="Accelerometer Data Analysis" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px;">
+                </div>
+                <p class="card-content" style="margin-top: 1rem; font-size: 0.9rem; color: #888;">
+                    Accelerometer waveform showing distinct pothole impact signatures
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Map Section -->
+    <section class="map-section">
+        <h2 class="map-title">The Resulting Map</h2>
+        <p class="map-subtitle">Crowdsourced road safety, visualized in real-time</p>
+        <div id="map"></div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer-text">Built in Ghaziabad // Deployed via Termux // Medhansh Kabadwal</p>
+    </footer>
     
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
