@@ -14,6 +14,252 @@ from collections import deque
 import math
 import numpy as np
 
+class KalmanFilter:
+    """
+    Kalman Filter for GPS smoothing and sensor fusion
+    Optimized for motorcycle telemetry with high-contrast performance
+    """
+    
+    def __init__(self, dim_x=4, dim_z=2):
+        # State vector: [lat, lng, velocity, heading]
+        self.dim_x = dim_x
+        self.dim_z = dim_z
+        
+        # State covariance matrix
+        self.P = np.eye(dim_x) * 0.1
+        
+        # State transition matrix (constant velocity model)
+        self.F = np.eye(dim_x)
+        self.F[0, 2] = 0.001  # lat += velocity * dt * cos(heading)
+        self.F[1, 2] = 0.001  # lng += velocity * dt * sin(heading)
+        
+        # Measurement matrix (we only measure lat, lng)
+        self.H = np.zeros((dim_z, dim_x))
+        self.H[0, 0] = 1  # measure lat
+        self.H[1, 1] = 1  # measure lng
+        
+        # Process noise covariance
+        self.Q = np.eye(dim_x) * 0.01
+        self.Q[2, 2] = 0.1  # velocity noise
+        self.Q[3, 3] = 0.1  # heading noise
+        
+        # Measurement noise covariance
+        self.R = np.eye(dim_z) * 5.0  # GPS measurement noise (~5m)
+        
+        # State vector
+        self.x = np.zeros(dim_x)
+        
+        # Time step
+        self.dt = 0.1  # 100ms update rate
+        
+    def predict(self):
+        """Predict next state"""
+        # Update state transition matrix with current dt
+        self.F[0, 2] = self.dt * 0.00001  # convert m/s to degrees lat
+        self.F[1, 2] = self.dt * 0.00001  # convert m/s to degrees lng
+        
+        # Predict state
+        self.x = np.dot(self.F, self.x)
+        
+        # Predict covariance
+        self.P = np.dot(np.dot(self.F, self.P), self.F.T) + self.Q
+        
+        return self.x.copy()
+    
+    def update(self, z):
+        """Update with measurement"""
+        # Innovation
+        y = z - np.dot(self.H, self.x)
+        
+        # Innovation covariance
+        S = np.dot(np.dot(self.H, self.P), self.H.T) + self.R
+        
+        # Kalman gain
+        K = np.dot(np.dot(self.P, self.H.T), np.linalg.inv(S))
+        
+        # Update state
+        self.x = self.x + np.dot(K, y)
+        
+        # Update covariance
+        I_KH = np.eye(self.dim_x) - np.dot(K, self.H)
+        self.P = np.dot(I_KH, self.P)
+        
+        return self.x.copy()
+    
+    def filter_gps(self, lat, lng, velocity=0, heading=0):
+        """Filter GPS coordinates"""
+        # Measurement vector
+        z = np.array([lat, lng])
+        
+        # Update state with velocity and heading if available
+        if velocity > 0:
+            self.x[2] = velocity
+        if heading > 0:
+            self.x[3] = heading
+        
+        # Predict and update
+        self.predict()
+        filtered_state = self.update(z)
+        
+        return {
+            'lat': filtered_state[0],
+            'lng': filtered_state[1],
+            'velocity': filtered_state[2],
+            'heading': filtered_state[3],
+            'confidence': 1.0 / (1.0 + np.trace(self.P))
+        }
+
+class SuspensionModeling:
+    """
+    Suspension Modeling Layer v1.4.0
+    Virtual Spring physics for pothole depth estimation
+    """
+    
+    def __init__(self, sampling_rate=100):
+        self.fs = sampling_rate
+        self.dt = 1.0 / sampling_rate
+        
+        # Classic 350 suspension parameters
+        self.front_travel_mm = 130  # mm
+        self.rear_travel_mm = 80    # mm
+        
+        # Bottom-out thresholds (g-force)
+        self.front_bottom_out_threshold = 3.5  # ~3.5g
+        self.rear_bottom_out_threshold = 2.8    # ~2.8g
+        
+        # Gravity constant
+        self.g = 9.81  # m/s^2
+        
+        # Integration buffers
+        self.velocity_buffer = deque(maxlen=50)  # 0.5 second window
+        self.displacement_buffer = deque(maxlen=50)
+        
+        # Current state
+        self.current_velocity = 0.0
+        self.current_displacement = 0.0
+        
+    def remove_gravity_component(self, accel_z):
+        """Remove gravity from vertical acceleration"""
+        return accel_z - self.g
+    
+    def double_integration_depth(self, accel_z_series):
+        """
+        Calculate pothole depth using double integration:
+        d = ∫∫ (a_z - g) dt^2
+        """
+        if not accel_z_series or len(accel_z_series) < 2:
+            return 0.0, 0.0, False
+        
+        # Remove gravity from each acceleration reading
+        accel_net = [self.remove_gravity_component(az) for az in accel_z_series]
+        
+        # First integration: velocity = ∫ acceleration dt
+        velocities = [0.0]
+        for i in range(1, len(accel_net)):
+            v = velocities[-1] + accel_net[i] * self.dt
+            velocities.append(v)
+        
+        # Second integration: displacement = ∫ velocity dt
+        displacements = [0.0]
+        for i in range(1, len(velocities)):
+            d = displacements[-1] + velocities[i] * self.dt
+            displacements.append(d)
+        
+        # Find maximum displacement (pothole depth)
+        max_displacement = max(abs(d) for d in displacements)
+        max_velocity = max(abs(v) for v in velocities)
+        
+        # Convert to mm for readability
+        max_displacement_mm = max_displacement * 1000
+        
+        return max_displacement_mm, max_velocity, True
+    
+    def detect_bottom_out(self, accel_z, is_front_suspension=True):
+        """
+        Detect suspension bottom-out event
+        Returns bottom_out_flag and severity
+        """
+        threshold = self.front_bottom_out_threshold if is_front_suspension else self.rear_bottom_out_threshold
+        
+        # Calculate absolute acceleration (ignoring gravity)
+        accel_net = abs(self.remove_gravity_component(accel_z))
+        
+        is_bottom_out = accel_net > threshold
+        
+        # Calculate severity (0-1 scale)
+        severity = min(accel_net / threshold, 2.0) / 2.0
+        
+        return {
+            'bottom_out': is_bottom_out,
+            'severity': severity,
+            'acceleration': accel_net,
+            'threshold': threshold
+        }
+    
+    def estimate_pothole_depth(self, accel_z_window, timestamp=None):
+        """
+        Complete pothole depth estimation with suspension modeling
+        """
+        if not accel_z_window:
+            return {
+                'estimated_depth_mm': 0.0,
+                'peak_velocity_ms': 0.0,
+                'bottom_out': False,
+                'bottom_out_severity': 0.0,
+                'confidence': 0.0,
+                'timestamp': timestamp or datetime.now()
+            }
+        
+        # Double integration for depth
+        depth_mm, peak_velocity, valid_integration = self.double_integration_depth(accel_z_window)
+        
+        # Bottom-out detection
+        bottom_out_data = self.detect_bottom_out(max(accel_z_window, key=abs))
+        
+        # Calculate confidence based on data quality
+        confidence = 0.0
+        if valid_integration:
+            # Higher confidence for deeper potholes (better signal-to-noise)
+            confidence = min(depth_mm / 50.0, 1.0)  # Normalize to 50mm max
+            
+            # Reduce confidence if bottom-out occurred (saturation)
+            if bottom_out_data['bottom_out']:
+                confidence *= 0.7
+        
+        return {
+            'estimated_depth_mm': depth_mm,
+            'peak_velocity_ms': peak_velocity,
+            'bottom_out': bottom_out_data['bottom_out'],
+            'bottom_out_severity': bottom_out_data['severity'],
+            'confidence': confidence,
+            'timestamp': timestamp or datetime.now()
+        }
+    
+    def get_suspension_travel_percentage(self, depth_mm, is_front=True):
+        """
+        Calculate suspension travel usage percentage
+        """
+        max_travel = self.front_travel_mm if is_front else self.rear_travel_mm
+        return min((depth_mm / max_travel) * 100, 100.0)
+
+# Global instances for v1.4 physics
+_kalman_filter = None
+_suspension_model = None
+
+def get_kalman_filter():
+    """Initialize or return global Kalman filter instance"""
+    global _kalman_filter
+    if _kalman_filter is None:
+        _kalman_filter = KalmanFilter()
+    return _kalman_filter
+
+def get_suspension_model():
+    """Initialize or return global suspension model instance"""
+    global _suspension_model
+    if _suspension_model is None:
+        _suspension_model = SuspensionModeling()
+    return _suspension_model
+
 def upload_with_wakeup(lat, lng, quality):
     API_URL = "https://shadowmap-api.onrender.com/upload"
     # Round to 5 decimal places (~1.1 meter precision)
