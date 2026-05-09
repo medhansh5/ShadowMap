@@ -25,7 +25,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # 3. Initialize SQLAlchemy with the app
 db = SQLAlchemy(app)
 
-# 4. Define Database Models (v1.1.0 Anomaly Intelligence)
+# 4. Define Database Models (v1.4.0 Deep Physics Integration)
 class Anomaly(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     latitude = db.Column(db.Float, nullable=False)
@@ -41,6 +41,14 @@ class Anomaly(db.Model):
     frequency_peak = db.Column(db.Float, nullable=True)  # v1.3.0: FFT frequency peak
     is_avoided = db.Column(db.Boolean, default=False)  # v1.3.0: Swerve-to-avoid detection
     road_surface = db.Column(db.String(50), nullable=True)  # v1.3.0: Pavement, Gravel, Cobblestone
+    
+    # v1.4.0 Deep Physics Fields
+    estimated_depth = db.Column(db.Float, nullable=True, comment='Pothole depth in mm from double integration')
+    rider_id = db.Column(db.String(50), nullable=True, comment='Unique rider identifier')
+    is_bottomed_out = db.Column(db.Boolean, default=False, comment='Suspension bottom-out flag')
+    heading = db.Column(db.Float, nullable=True, comment='Kalman-filtered heading in degrees')
+    suspension_travel_percent = db.Column(db.Float, nullable=True, comment='Suspension travel usage percentage')
+    physics_confidence = db.Column(db.Float, nullable=True, comment='Physics model confidence score')
 
     def to_dict(self):
         return {
@@ -56,7 +64,14 @@ class Anomaly(db.Model):
             "is_active": self.is_active,
             "frequency_peak": self.frequency_peak,
             "is_avoided": self.is_avoided,
-            "road_surface": self.road_surface
+            "road_surface": self.road_surface,
+            # v1.4.0 physics fields
+            "estimated_depth": self.estimated_depth,
+            "rider_id": self.rider_id,
+            "is_bottomed_out": self.is_bottomed_out,
+            "heading": self.heading,
+            "suspension_travel_percent": self.suspension_travel_percent,
+            "physics_confidence": self.physics_confidence
         }
 
 class TelemetryBuffer(db.Model):
@@ -69,6 +84,12 @@ class TelemetryBuffer(db.Model):
     impact_magnitude = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     is_processed = db.Column(db.Boolean, default=False)
+    
+    # v1.4.0 physics fields for high-frequency ingestion
+    rider_id = db.Column(db.String(50), nullable=True)
+    heading = db.Column(db.Float, nullable=True)
+    estimated_depth = db.Column(db.Float, nullable=True)
+    is_bottomed_out = db.Column(db.Boolean, default=False)
 
 # 5. Create Database Tables (Run once on startup)
 with app.app_context():
@@ -358,7 +379,7 @@ def process_telemetry():
 def process_event():
     """
     Process event-triggered upload from edge computing layer.
-    v1.3.0: Accepts pre/post trigger windows with FFT signature analysis.
+    v1.4.0: Accepts physics data with depth estimation and Kalman filtering.
     """
     try:
         data = request.get_json()
@@ -382,12 +403,27 @@ def process_event():
         gyro_history = data.get('gyro_history', [])
         velocity = float(data.get('velocity', 20.0))
         
+        # v1.4.0 Physics fields
+        estimated_depth = data.get('estimated_depth', 0.0)
+        rider_id = data.get('rider_id', None)
+        is_bottomed_out = data.get('bottom_out', False)
+        heading = data.get('heading', None)
+        suspension_travel = data.get('suspension_travel', 0.0)
+        physics_confidence = data.get('physics_confidence', 0.0)
+        
         lat = float(peak_coords.get('lat', 0))
         lng = float(peak_coords.get('lng', 0))
         
         # Basic coordinate validation
         if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
             return jsonify({"error": "Invalid coordinates"}), 400
+        
+        # v1.4.0 Server-side validation for sensor saturation
+        if estimated_depth > 150:
+            print(f"[SENSOR_SATURATION] Depth {estimated_depth}mm exceeds 150mm threshold")
+            # Flag as sensor saturation but still store the data
+            is_bottomed_out = True
+            physics_confidence = min(physics_confidence, 0.5)  # Reduce confidence
         
         # Get signature analysis instance
         signature_intel = get_signature_analysis()
@@ -460,6 +496,23 @@ def process_event():
                         if not existing.road_surface:
                             existing.road_surface = road_surface
                         
+                        # v1.4.0 Update physics fields
+                        if estimated_depth:
+                            existing.estimated_depth = max(existing.estimated_depth or 0, estimated_depth)
+                        if rider_id:
+                            existing.rider_id = rider_id
+                        existing.is_bottomed_out = existing.is_bottomed_out or is_bottomed_out
+                        if heading:
+                            existing.heading = heading
+                        if suspension_travel:
+                            existing.suspension_travel_percent = max(
+                                existing.suspension_travel_percent or 0, suspension_travel
+                            )
+                        if physics_confidence:
+                            existing.physics_confidence = max(
+                                existing.physics_confidence or 0, physics_confidence
+                            )
+                        
                         db.session.commit()
                         
                         print(f"[EVENT CLUSTER] Anomaly #{nearby_id} updated via event upload - Hits: {existing.hit_count}, "
@@ -474,7 +527,16 @@ def process_event():
                             "signature": {
                                 "fft_result": fft_result,
                                 "road_surface": road_surface,
-                                "swerve_detected": swerve_result
+                                "swerve_detected": swerve_result,
+                                "physics": {
+                                    "estimated_depth": estimated_depth,
+                                    "rider_id": rider_id,
+                                    "is_bottomed_out": is_bottomed_out,
+                                    "heading": heading,
+                                    "suspension_travel_percent": suspension_travel,
+                                    "physics_confidence": physics_confidence,
+                                    "sensor_saturation": estimated_depth > 150
+                                }
                             },
                             "window_stats": {
                                 "pre_samples": len(pre_window),
@@ -498,7 +560,14 @@ def process_event():
                         last_reported=datetime.utcnow(),
                         frequency_peak=fft_result['frequency_peak'],
                         is_avoided=swerve_result['is_avoided'],
-                        road_surface=road_surface
+                        road_surface=road_surface,
+                        # v1.4.0 physics fields
+                        estimated_depth=estimated_depth,
+                        rider_id=rider_id,
+                        is_bottomed_out=is_bottomed_out,
+                        heading=heading,
+                        suspension_travel_percent=suspension_travel,
+                        physics_confidence=physics_confidence
                     )
                     
                     db.session.add(new_anomaly)
