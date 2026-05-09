@@ -1,0 +1,40 @@
+{
+  "name": "ShadowMap Lite - Rider HUD",
+  "short_name": "ShadowMap",
+  "description": "High-performance telemetry dashboard for motorcycle riders",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "lang": "en",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjMDAwMDAwIi8+CjxjaXJjbGUgY3g9Ijk2IiBjeT0iOTYiIHI9IjQwIiBmaWxsPSIjMDBmZjAwIiBvcGFjaXR5PSIwLjMiLz4KPGNpcmNsZSBjeD0iOTYiIGN5PSI5NiIgcj0iMzAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwZmZmMCIgc3Ryb2tlLXdpZHRoPSIzIi8+Cjx0ZXh0IHg9Ijk2IiB5PSIxMDUiIGZvbnQtZmFtaWx5PSJDb3VyaWVyIE5ldywgbW9ub3NwYWNlIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMDBmZjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5ITUQ8L3RleHQ+Cjx0ZXh0IHg9Ijk2IiB5PSIxMzAiIGZvbnQtZmFtaWx5PSJDb3VyaWVyIE5ldywgbW9ub3NwYWNlIiBmb250LXNpemU9IjE2IiBmaWxsPSIjMDBmZjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBvcGFjaXR5PSIwLjciPjA8L3RleHQ+Cjwvc3ZnPgo=",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSIjMDAwMDAwIi8+CjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI1NiIgcj0iMTAwIiBmaWxsPSIjMDBmZjAwIiBvcGFjaXR5PSIwLjMiLz4KPGNpcmNsZSBjeD0iMjU2IiBjeT0iMjU2IiByPSI4MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDBmZmYwIiBzdHJva2Utd2lkdGg9IjUiLz4KPHRleHQgeD0iMjU2IiB5PSIyNzAiIGZvbnQtZmFtaWx5PSJDb3VyaWVyIE5ldywgbW9ub3NwYWNlIiBmb250LXNpemU9IjQ4IiBmaWxsPSIjMDBmZmYwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5ITUQ8L3RleHQ+Cjx0ZXh0IHg9IjI1NiIgeT0iMzIwIiBmb250LWZhbWlseT0iQ291cmllciBOZXcsIG1vbm9zcGFjZSIgZm9udC1zaXplPSIzMiIgZmlsbD0iIzAwZmZmMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgb3BhY2l0eT0iMC43PjA8L3RleHQ+Cjwvc3ZnPgo=",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["utilities", "navigation", "sports"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Start Ride",
+      "short_name": "Ride",
+      "description": "Launch telemetry dashboard",
+      "url": "/",
+      "icons": [
+        {
+          "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSIjMDAwMDAwIi8+CjxjaXJjbGUgY3g9IjQ4IiBjeT0iNDgiIHI9IjIwIiBmaWxsPSIjMDBmZjAwIiBvcGFjaXR5PSIwLjMiLz4KPGNpcmNsZSBjeD0iNDgiIGN5PSI0OCIgcj0iMTUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwZmZmMCIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjwvc3ZnPgo=",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}
