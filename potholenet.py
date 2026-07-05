@@ -1,3 +1,9 @@
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import pandas as pd
 import numpy as np
 from scipy.signal import butter, filtfilt
@@ -48,15 +54,20 @@ class KalmanFilter:
         
         # State vector
         self.x = np.zeros(dim_x)
+        self.is_initialized = False
         
         # Time step
         self.dt = 0.1  # 100ms update rate
         
     def predict(self):
         """Predict next state"""
-        # Update state transition matrix with current dt
-        self.F[0, 2] = self.dt * 0.00001  # convert m/s to degrees lat
-        self.F[1, 2] = self.dt * 0.00001  # convert m/s to degrees lng
+        # Update state transition matrix with current dt and heading
+        heading_rad = math.radians(self.x[3])
+        lat_rad = math.radians(self.x[0])
+        cos_lat = max(0.1, math.cos(lat_rad))
+        
+        self.F[0, 2] = self.dt * 0.000009 * math.cos(heading_rad)  # convert m/s to degrees lat
+        self.F[1, 2] = self.dt * 0.000009 * math.sin(heading_rad) / cos_lat  # convert m/s to degrees lng
         
         # Predict state
         self.x = np.dot(self.F, self.x)
@@ -88,6 +99,20 @@ class KalmanFilter:
     
     def filter_gps(self, lat, lng, velocity=0, heading=0):
         """Filter GPS coordinates"""
+        if not self.is_initialized:
+            self.x[0] = lat
+            self.x[1] = lng
+            self.x[2] = velocity
+            self.x[3] = heading
+            self.is_initialized = True
+            return {
+                'lat': lat,
+                'lng': lng,
+                'velocity': velocity,
+                'heading': heading,
+                'confidence': 1.0 / (1.0 + np.trace(self.P))
+            }
+        
         # Measurement vector
         z = np.array([lat, lng])
         
@@ -140,29 +165,31 @@ class SuspensionModeling:
         
     def remove_gravity_component(self, accel_z):
         """Remove gravity from vertical acceleration"""
-        return accel_z - self.g
+        if abs(accel_z) < 4.0:
+            return accel_z  # Already net acceleration
+        return accel_z - (self.g if accel_z > 0 else -self.g)
     
     def double_integration_depth(self, accel_z_series):
         """
         Calculate pothole depth using double integration:
-        d = ∫∫ (a_z - g) dt^2
+        d = ∫∫ a_net dt^2
         """
         if not accel_z_series or len(accel_z_series) < 2:
             return 0.0, 0.0, False
         
-        # Remove gravity from each acceleration reading
-        accel_net = [self.remove_gravity_component(az) for az in accel_z_series]
+        # Use series directly as net acceleration
+        accel_net = list(accel_z_series)
         
-        # First integration: velocity = ∫ acceleration dt
+        # First integration: velocity = ∫ acceleration dt (using trapezoidal rule)
         velocities = [0.0]
         for i in range(1, len(accel_net)):
-            v = velocities[-1] + accel_net[i] * self.dt
+            v = velocities[-1] + 0.5 * (accel_net[i] + accel_net[i-1]) * self.dt
             velocities.append(v)
         
-        # Second integration: displacement = ∫ velocity dt
+        # Second integration: displacement = ∫ velocity dt (using trapezoidal rule)
         displacements = [0.0]
         for i in range(1, len(velocities)):
-            d = displacements[-1] + velocities[i] * self.dt
+            d = displacements[-1] + 0.5 * (velocities[i] + velocities[i-1]) * self.dt
             displacements.append(d)
         
         # Find maximum displacement (pothole depth)
@@ -181,18 +208,17 @@ class SuspensionModeling:
         """
         threshold = self.front_bottom_out_threshold if is_front_suspension else self.rear_bottom_out_threshold
         
-        # Calculate absolute acceleration (ignoring gravity)
-        accel_net = abs(self.remove_gravity_component(accel_z))
-        
-        is_bottom_out = accel_net > threshold
-        
-        # Calculate severity (0-1 scale)
-        severity = min(accel_net / threshold, 2.0) / 2.0
+        # Convert acceleration in m/s^2 to g-force
+        accel_val = abs(accel_z)
+        accel_g = accel_val / self.g
+            
+        is_bottom_out = accel_g > threshold
+        severity = min(accel_g / threshold, 2.0) / 2.0
         
         return {
             'bottom_out': is_bottom_out,
             'severity': severity,
-            'acceleration': accel_net,
+            'acceleration': accel_val,
             'threshold': threshold
         }
     
@@ -210,11 +236,23 @@ class SuspensionModeling:
                 'timestamp': timestamp or datetime.now()
             }
         
-        # Double integration for depth
-        depth_mm, peak_velocity, valid_integration = self.double_integration_depth(accel_z_window)
+        # Remove gravity baseline from acceleration window if needed
+        if len(accel_z_window) > 0:
+            avg_accel = np.mean(accel_z_window)
+            if abs(avg_accel) > 5.0:
+                gravity_baseline = self.g if avg_accel > 0 else -self.g
+                accel_net_window = [az - gravity_baseline for az in accel_z_window]
+            else:
+                accel_net_window = list(accel_z_window)
+        else:
+            accel_net_window = []
         
-        # Bottom-out detection
-        bottom_out_data = self.detect_bottom_out(max(accel_z_window, key=abs))
+        # Double integration for depth
+        depth_mm, peak_velocity, valid_integration = self.double_integration_depth(accel_net_window)
+        
+        # Bottom-out detection on raw impact
+        max_impact = max(accel_z_window, key=abs) if len(accel_z_window) > 0 else 0.0
+        bottom_out_data = self.detect_bottom_out(max_impact)
         
         # Calculate confidence based on data quality
         confidence = 0.0
@@ -305,6 +343,8 @@ class PotholeNet:
         Removes low-frequency engine 'thump' vibrations.
         Specifically tuned for the 350cc long-stroke engine signature.
         """
+        if len(data) <= 15:
+            return data - np.mean(data) if len(data) > 1 else data
         nyq = 0.5 * self.fs
         normal_cutoff = cutoff / nyq
         b, a = butter(order, normal_cutoff, btype='high', analog=False)
@@ -381,7 +421,7 @@ class SignalIntelligence:
         """
         # Simple high-pass: subtract moving average (gravity component)
         if len(self.buffer) < 10:
-            return accel_z - self.gravity_threshold
+            return accel_z - (self.gravity_threshold if accel_z >= 0 else -self.gravity_threshold)
         
         # Calculate moving average for gravity estimation
         gravity_estimate = np.mean(list(self.buffer)[-10:])
@@ -404,10 +444,6 @@ class SignalIntelligence:
         
         # Add to buffer
         self.buffer.append(magnitude)
-        
-        # Check if buffer is full
-        if len(self.buffer) < self.window_samples:
-            return False, magnitude
         
         # Calculate window statistics
         window_data = list(self.buffer)
@@ -911,9 +947,13 @@ def classify_data(sensor_data):
         prediction = classifier.model.predict(features)[0]
         probabilities = classifier.model.predict_proba(features)[0]
         
-        classification = "POTHOLE" if prediction == 1 else "SMOOTH"
-        severity_score = float(probabilities[1]) if prediction == 1 else float(probabilities[0])
+        classification = "POTHOLE" if (prediction == 1 or is_event) else "SMOOTH"
         confidence = float(max(probabilities))
+        if is_event and prediction == 0:
+            severity_score = min(1.0, float(impact_magnitude / 30.0))
+            confidence = max(confidence, 0.85)
+        else:
+            severity_score = float(probabilities[1]) if prediction == 1 else float(probabilities[0])
         
         return {
             'classification': classification,

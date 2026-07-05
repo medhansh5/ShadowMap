@@ -1,6 +1,12 @@
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import os
 import math
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from datetime import datetime
@@ -141,6 +147,14 @@ def rate_limit(max_requests=10, window_seconds=60):
 def index():
     return render_template('index.html')
 
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory(app.root_path, 'sw.js')
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory(app.root_path, 'manifest.json')
+
 # --- API ROUTES ---
 
 @app.route('/upload', methods=['POST'])
@@ -262,7 +276,7 @@ def process_telemetry():
                 
                 if nearby_id:
                     # Update existing anomaly
-                    existing = Anomaly.query.get(nearby_id)
+                    existing = db.session.get(Anomaly, nearby_id)
                     if existing:
                         existing.hit_count += 1
                         existing.last_reported = datetime.utcnow()
@@ -476,7 +490,7 @@ def process_event():
                 
                 if nearby_id:
                     # Update existing anomaly
-                    existing = Anomaly.query.get(nearby_id)
+                    existing = db.session.get(Anomaly, nearby_id)
                     if existing:
                         existing.hit_count += 1
                         existing.last_reported = datetime.utcnow()

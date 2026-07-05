@@ -4,6 +4,12 @@ ShadowMap v1.4 API Test Suite
 Tests the enhanced /api/event endpoint with physics data
 """
 
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import requests
 import json
 import time

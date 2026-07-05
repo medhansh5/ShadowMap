@@ -15,11 +15,16 @@ This script simulates real ride scenarios to verify the entire pipeline:
 Run this script while Flask server is active to test the complete system.
 """
 
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import requests
 import json
 import time
 from datetime import datetime
-import sys
 
 class ShadowMapTester:
     def __init__(self, base_url="http://127.0.0.1:5000"):

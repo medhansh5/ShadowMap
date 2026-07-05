@@ -1,25 +1,1574 @@
-﻿<!DOCTYPE html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>ShadowMap | Live Road Quality</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShadowMap Lite - Rider HUD</title>
+    
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Google Fonts: Orbitron & Share Tech Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#05050a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
     <style>
-        #map {
-            height: 100vh;
-            width: 100%;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            margin: 0;
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            background: #05050a;
+            color: #00ff66;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+            text-shadow: 0 0 5px rgba(0, 255, 102, 0.5);
+        }
+
+        /* Map Container */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* HUD Overlay */
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Speedometer */
+        .speedometer {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 1px solid #00ff00;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+
+        .speed-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .speed-unit {
+            font-size: 18px;
+            color: #00ff00;
+            opacity: 0.8;
+        }
+
+        /* Grip Meter */
+        .grip-meter {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+        }
+
+        .grip-arc {
+            width: 100%;
+            height: 100%;
+        }
+
+        .grip-value {
+            position: absolute;
+            bottom: 30px;
+            right: 50px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 0 0 8px #00ffff;
+        }
+
+        /* Traction Analysis */
+        .traction-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 200px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .traction-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .traction-label {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            font-size: 12px;
+            color: #00ff00;
+        }
+
+        /* Anomaly Alert */
+        .anomaly-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 5px solid #ff0000;
+            background: rgba(255, 0, 0, 0.1);
+            z-index: 100;
+            display: none;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Permission Modal */
+        .permission-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .permission-content {
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .permission-title {
+            font-size: 24px;
+            color: #00ff00;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .permission-text {
+            font-size: 14px;
+            color: #00ff00;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .permission-button {
+            background: #00ff00;
+            color: #000000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .permission-button:hover {
+            background: #00cc00;
+            box-shadow: 0 0 20px #00ff00;
+        }
+
+        /* Status Indicators */
+        .status-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 20;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #333333;
+        }
+
+        .status-indicator.active {
+            background: #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+        }
+
+        .status-indicator.warning {
+            background: #ffff00;
+            box-shadow: 0 0 5px #ffff00;
+        }
+
+        .status-indicator.danger {
+            background: #ff0000;
+            box-shadow: 0 0 5px #ff0000;
+        }
+        
+        /* Install Button */
+        .install-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #00ff00, #00cc00);
+            color: #000000;
+            border: 2px solid #00ff00;
+            padding: 12px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            z-index: 100;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .install-button:hover {
+            background: linear-gradient(135deg, #00ff00, #00aa00);
+            box-shadow: 0 0 20px #00ff00;
+            transform: translateY(-2px);
+        }
+        
+        .install-button:active {
+            transform: translateY(0);
+        }
+
+        /* Telemetry Display */
+        .telemetry {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            font-size: 12px;
+            color: #00ff00;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            z-index: 20;
+        }
+
+        .telemetry-line {
+            margin: 2px 0;
+        }
+
+        /* Cyberpunk Glassmorphism & Neon Upgrades */
+        .speedometer, .telemetry, .traction-bar, .grip-meter {
+            background: rgba(10, 15, 25, 0.65) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(0, 255, 102, 0.6) !important;
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.25), inset 0 0 15px rgba(0, 255, 102, 0.1) !important;
+            border-radius: 12px !important;
+        }
+
+        .speed-value {
+            font-family: 'Orbitron', sans-serif !important;
+        }
+
+        /* Mission Control Panel */
+        .mission-control {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            width: 260px;
+            background: rgba(5, 10, 20, 0.75);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2), inset 0 0 15px rgba(0, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 30;
+            font-family: 'Share Tech Mono', monospace;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+
+        .mission-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            margin-bottom: 12px;
+            border-bottom: 1px dashed rgba(0, 255, 255, 0.4);
+            padding-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .mission-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            background: rgba(0, 255, 102, 0.1);
+            border: 1px solid rgba(0, 255, 102, 0.4);
+            border-radius: 6px;
+            padding: 6px 4px;
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 10px;
+            color: #88ffbb;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+
+        .stat-val {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #00ff66;
+            text-shadow: 0 0 8px #00ff66;
+        }
+
+        .stat-val small {
+            font-size: 9px;
+            margin-left: 1px;
+        }
+
+        .mission-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .cyber-btn {
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.2), rgba(0, 255, 102, 0.2));
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 8px 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-shadow: 0 0 5px #00ffff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .cyber-btn:hover {
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.4), rgba(0, 255, 102, 0.4));
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .cyber-btn:active {
+            transform: translateY(1px);
+        }
+
+        @keyframes glitch-flicker {
+            0%, 100% { opacity: 1; }
+            92% { opacity: 1; }
+            94% { opacity: 0.4; transform: translate(-1px, 1px); }
+            96% { opacity: 1; transform: translate(1px, -1px); }
+            98% { opacity: 0.8; }
+        }
+
+        .speedometer {
+            animation: glitch-flicker 12s infinite;
         }
     </style>
 </head>
 <body>
-    <div id="status-overlay" style="position: fixed; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-    <span id="status-text">📡 Connecting to server...</span>
-</div>
+    <!-- Map Container -->
     <div id="map"></div>
+
+    <!-- HUD Overlay -->
+    <div class="hud-overlay">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-indicator" id="gps-status" title="GPS"></div>
+            <div class="status-indicator" id="motion-status" title="Motion"></div>
+            <div class="status-indicator" id="orientation-status" title="Orientation"></div>
+            <div class="status-indicator" id="sync-status" title="Sync"></div>
+            <div class="status-indicator" id="signal-status" title="Signal"></div>
+        </div>
+        
+        <!-- Install Button -->
+        <button class="install-button" id="install-button" style="display: none;">
+            INSTALL HUD
+        </button>
+
+        <!-- Mission Control Panel -->
+        <div class="mission-control">
+            <div class="mission-title">⚡ MISSION CONTROL</div>
+            <div class="mission-stats">
+                <div class="stat-box">
+                    <span class="stat-label">HITS</span>
+                    <span class="stat-val" id="mc-hits">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">MAX DEPTH</span>
+                    <span class="stat-val" id="mc-depth">0.0<small>mm</small></span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">MAX G-FORCE</span>
+                    <span class="stat-val" id="mc-gforce">0.0<small>g</small></span>
+                </div>
+            </div>
+            <div class="mission-actions">
+                <button class="cyber-btn" onclick="exportGeoJSON()"><span class="glow-icon">📥</span> EXPORT GEOJSON</button>
+                <button class="cyber-btn audio-toggle" id="audio-btn" onclick="toggleAudio()"><span class="glow-icon">🔊</span> AUDIO ON</button>
+            </div>
+        </div>
+
+        <!-- Speedometer -->
+        <div class="speedometer">
+            <div class="speed-value" id="speed-value">0</div>
+            <div class="speed-unit">km/h</div>
+        </div>
+
+        <!-- Grip Meter -->
+        <div class="grip-meter">
+            <svg class="grip-arc" viewBox="0 0 150 150">
+                <path id="grip-arc-path" d="M 25 125 A 50 50 0 0 1 125 125" 
+                      stroke="#00ffff" stroke-width="8" fill="none" 
+                      stroke-linecap="round" opacity="0.3"/>
+                <path id="grip-arc-fill" d="M 25 125 A 50 50 0 0 1 25 125" 
+                      stroke="#00ffff" stroke-width="8" fill="none" 
+                      stroke-linecap="round" filter="url(#glow)"/>
+                <defs>
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+            </svg>
+            <div class="grip-value" id="grip-value">0°</div>
+        </div>
+
+        <!-- Traction Analysis -->
+        <div class="traction-bar">
+            <div class="traction-label">GRIP USED: <span id="traction-percent">0</span>%</div>
+            <div class="traction-fill" id="traction-fill"></div>
+        </div>
+
+        <!-- Telemetry Display -->
+        <div class="telemetry">
+            <div class="telemetry-line">AX: <span id="ax">0.00</span> m/s²</div>
+            <div class="telemetry-line">AY: <span id="ay">0.00</span> m/s²</div>
+            <div class="telemetry-line">AZ: <span id="az">0.00</span> m/s²</div>
+            <div class="telemetry-line">MAG: <span id="magnitude">0.00</span> m/s²</div>
+            <div class="telemetry-line">LEAN: <span id="lean-angle">0.0</span>°</div>
+            <div class="telemetry-line">GRIP: <span id="grip-calc">0.00</span></div>
+            <div class="telemetry-line">DEPTH: <span id="suspension-depth">0.0</span> mm</div>
+            <div class="telemetry-line">TRAVEL: <span id="suspension-travel">0.0</span>%</div>
+            <div class="telemetry-line">BOTTOM: <span id="bottom-out-status">NO</span></div>
+        </div>
+    </div>
+
+    <!-- Anomaly Alert -->
+    <div class="anomaly-alert" id="anomaly-alert"></div>
+
+    <!-- Permission Modal -->
+    <div class="permission-modal" id="permission-modal">
+        <div class="permission-content">
+            <div class="permission-title">ShadowMap Lite</div>
+            <div class="permission-text">
+                This app requires access to device sensors and location to provide real-time telemetry and mapping.
+                Please grant permissions when prompted.
+            </div>
+            <button class="permission-button" onclick="requestPermissions()">ENABLE SENSORS</button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    
+    <script>
+        // Global Variables
+        let map;
+        let userMarker;
+        let currentPosition = { lat: 0, lng: 0, heading: 0 };
+        let filteredPosition = { lat: 0, lng: 0, velocity: 0, heading: 0, confidence: 0 };
+        let sensorData = {
+            acceleration: { x: 0, y: 0, z: 0 },
+            orientation: { alpha: 0, beta: 0, gamma: 0 },
+            speed: 0,
+            leanAngle: 0,
+            gripUsed: 0
+        };
+        
+        // Physics Variables (v1.4)
+        let suspensionData = {
+            estimatedDepth: 0,
+            peakVelocity: 0,
+            bottomOut: false,
+            bottomOutSeverity: 0,
+            suspensionTravel: 0,
+            confidence: 0
+        };
+        
+        // Kalman Filter State
+        let kalmanState = {
+            initialized: false,
+            lastUpdate: Date.now(),
+            stateVector: [0, 0, 0, 0], // [lat, lng, velocity, heading]
+            covariance: [[0.1, 0, 0, 0], [0, 0.1, 0, 0], [0, 0, 0.1, 0], [0, 0, 0, 0.1]]
+        };
+        
+        // Suspension Integration Buffers
+        let accelZBuffer = [];
+        let velocityBuffer = [];
+        let displacementBuffer = [];
+        
+        // PWA Variables
+        let deferredPrompt = null;
+        let wakeLock = null;
+        let isPWAInstalled = false;
+        let isOnline = navigator.onLine;
+        let serviceWorkerRegistration = null;
+        let riderId = 'rider_' + Math.random().toString(36).substr(2, 9);
+        
+        // Signal Processing Variables
+        let highPassFilter = {
+            alpha: 0.1,
+            previousAcceleration: { x: 0, y: 0, z: 0 },
+            filteredAcceleration: { x: 0, y: 0, z: 0 }
+        };
+        
+        let offlineBuffer = [];
+        
+        // Mission Control & Audio Telemetry Variables
+        let totalAnomalies = 0;
+        let maxSeverity = 0.0;
+        let maxDepthEncountered = 0.0;
+        let recordedWaypoints = [];
+        let audioCtx = null;
+        let audioEnabled = true;
+
+        // Initialize Application
+        async function initApp() {
+            initMap();
+            await registerServiceWorker();
+            setupPWAInstallFlow();
+            setupWakeLock();
+            setupNetworkMonitoring();
+            checkPermissions();
+            setupEventListeners();
+        }
+
+        // Initialize Map
+        function initMap() {
+            map = L.map('map', {
+                center: [0, 0],
+                zoom: 15,
+                zoomControl: false
+            });
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap contributors © CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            userMarker = L.marker([0, 0], {
+                icon: L.divIcon({
+                    className: 'user-marker',
+                    html: '<div style="background: #00ff00; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #000;"></div>',
+                    iconSize: [14, 14]
+                })
+            }).addTo(map);
+        }
+
+        // Check and Request Permissions
+        function checkPermissions() {
+            // Check if deviceorientation is supported
+            if (typeof DeviceOrientationEvent !== 'undefined' && 
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS 13+ requires permission
+                document.getElementById('permission-modal').style.display = 'flex';
+            } else {
+                // Other browsers can start immediately
+                startSensors();
+            }
+        }
+
+        function requestPermissions() {
+            document.getElementById('permission-modal').style.display = 'none';
+            
+            // Request device orientation permission for iOS
+            if (typeof DeviceOrientationEvent !== 'undefined' && 
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            startSensors();
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                startSensors();
+            }
+            
+            // Request geolocation permission
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        updatePosition(position);
+                        startLocationTracking();
+                    },
+                    error => {
+                        console.error('Geolocation error:', error);
+                        updateStatus('gps-status', 'danger');
+                    }
+                );
+            }
+        }
+
+        // Start Sensor Monitoring
+        function startSensors() {
+            // Device Motion Events
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', handleMotion);
+                updateStatus('motion-status', 'active');
+            }
+
+            // Device Orientation Events
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleOrientation);
+                updateStatus('orientation-status', 'active');
+            }
+        }
+
+        // Start Location Tracking
+        function startLocationTracking() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    updatePosition,
+                    error => {
+                        console.error('Location tracking error:', error);
+                        updateStatus('gps-status', 'warning');
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+            }
+        }
+
+        // Handle Device Motion (v1.4 with Suspension Modeling)
+        function handleMotion(event) {
+            if (event.acceleration) {
+                const { x, y, z } = event.acceleration;
+                const timestamp = Date.now();
+                
+                // Apply High-Pass Filter
+                highPassFilter.filteredAcceleration.x = 
+                    highPassFilter.alpha * (highPassFilter.filteredAcceleration.x + x - highPassFilter.previousAcceleration.x);
+                highPassFilter.filteredAcceleration.y = 
+                    highPassFilter.alpha * (highPassFilter.filteredAcceleration.y + y - highPassFilter.previousAcceleration.y);
+                highPassFilter.filteredAcceleration.z = 
+                    highPassFilter.alpha * (highPassFilter.filteredAcceleration.z + z - highPassFilter.previousAcceleration.z);
+                
+                highPassFilter.previousAcceleration = { x, y, z };
+                
+                sensorData.acceleration = highPassFilter.filteredAcceleration;
+                
+                // v1.4: Suspension Modeling - Double Integration for Depth
+                updateSuspensionModeling(z, timestamp);
+                
+                // Calculate Vector Magnitude
+                const magnitude = Math.sqrt(
+                    Math.pow(sensorData.acceleration.x, 2) +
+                    Math.pow(sensorData.acceleration.y, 2) +
+                    Math.pow(sensorData.acceleration.z, 2)
+                );
+                
+                // Enhanced Anomaly Detection with suspension data
+                if (magnitude > 15.0 || suspensionData.bottomOut) {
+                    triggerAnomaly(magnitude, suspensionData);
+                }
+                
+                updateTelemetryDisplay();
+                updateSuspensionDisplay();
+            }
+        }
+
+        // Handle Device Orientation
+        function handleOrientation(event) {
+            if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
+                sensorData.orientation = {
+                    alpha: event.alpha,
+                    beta: event.beta,
+                    gamma: event.gamma
+                };
+                
+                // Calculate lean angle (simplified - using gamma for roll)
+                sensorData.leanAngle = Math.abs(event.gamma);
+                
+                // Calculate grip used: Grip = tan(θ)
+                const leanAngleRad = (sensorData.leanAngle * Math.PI) / 180;
+                sensorData.gripUsed = Math.tan(leanAngleRad);
+                
+                // Limit grip to reasonable values (0-2.0, where 1.0 = 100%)
+                sensorData.gripUsed = Math.min(sensorData.gripUsed, 2.0);
+                
+                updateGripMeter();
+                updateTractionBar();
+            }
+        }
+
+        // Update Position (v1.4 with Kalman Filtering)
+        function updatePosition(position) {
+            currentPosition.lat = position.coords.latitude;
+            currentPosition.lng = position.coords.longitude;
+            
+            if (position.coords.speed !== null) {
+                // Convert m/s to km/h
+                sensorData.speed = position.coords.speed * 3.6;
+            }
+            
+            if (position.coords.heading !== null) {
+                currentPosition.heading = position.coords.heading;
+            }
+            
+            // Apply Kalman Filter for smooth tracking
+            applyKalmanFilter();
+            
+            recordedWaypoints.push({
+                lat: filteredPosition.lat,
+                lng: filteredPosition.lng,
+                timestamp: Date.now(),
+                speed: sensorData.speed
+            });
+            
+            updateMap();
+            updateSpeedometer();
+            updateStatus('gps-status', 'active');
+        }
+
+        // Update Map (v1.4 with Filtered Coordinates)
+        function updateMap() {
+            // Use Kalman-filtered coordinates for smoother tracking
+            const latLng = [filteredPosition.lat, filteredPosition.lng];
+            
+            userMarker.setLatLng(latLng);
+            map.setView(latLng, map.getZoom(), {
+                animate: false
+            });
+            
+            // Rotate map to match heading if available
+            if (filteredPosition.heading !== null) {
+                // Note: Leaflet doesn't support map rotation directly
+                // This would require a plugin or custom implementation
+            }
+        }
+
+        // Update Speedometer
+        function updateSpeedometer() {
+            document.getElementById('speed-value').textContent = Math.round(sensorData.speed);
+        }
+
+        // Update Grip Meter
+        function updateGripMeter() {
+            // Convert grip used (0-1.0) to arc path (0-180 deg)
+            const percentage = Math.min(sensorData.gripUsed * 100, 100);
+            document.getElementById('grip-value').textContent = `${Math.round(sensorData.leanAngle)}°`;
+            
+            // Update arc fill (simple approximation by changing dasharray or color)
+            const fill = document.getElementById('grip-arc-fill');
+            if (percentage > 80) {
+                fill.setAttribute('stroke', '#ff0000'); // Danger
+            } else if (percentage > 50) {
+                fill.setAttribute('stroke', '#ffff00'); // Warning
+            } else {
+                fill.setAttribute('stroke', '#00ffff'); // Normal
+            }
+        }
+
+        // Update Traction Bar
+        function updateTractionBar() {
+            const percentage = Math.min(Math.round(sensorData.gripUsed * 100), 100);
+            document.getElementById('traction-percent').textContent = percentage;
+            document.getElementById('traction-fill').style.width = `${percentage}%`;
+        }
+
+        // Update Telemetry Display
+        function updateTelemetryDisplay() {
+            document.getElementById('ax').textContent = sensorData.acceleration.x.toFixed(2);
+            document.getElementById('ay').textContent = sensorData.acceleration.y.toFixed(2);
+            document.getElementById('az').textContent = sensorData.acceleration.z.toFixed(2);
+            
+            const magnitude = Math.sqrt(
+                Math.pow(sensorData.acceleration.x, 2) +
+                Math.pow(sensorData.acceleration.y, 2) +
+                Math.pow(sensorData.acceleration.z, 2)
+            );
+            document.getElementById('magnitude').textContent = magnitude.toFixed(2);
+            document.getElementById('lean-angle').textContent = sensorData.leanAngle.toFixed(1);
+            document.getElementById('grip-calc').textContent = sensorData.gripUsed.toFixed(2);
+        }
+
+        // Trigger Anomaly Alert (v1.4 with Physics Data)
+        function triggerAnomaly(magnitude, suspensionData = null) {
+            const alert = document.getElementById('anomaly-alert');
+            alert.style.display = 'block';
+            
+            totalAnomalies++;
+            maxSeverity = Math.max(maxSeverity, magnitude);
+            maxDepthEncountered = Math.max(maxDepthEncountered, suspensionData?.estimatedDepth || 0);
+            updateMissionControl();
+            playImpactSound(suspensionData?.bottomOut);
+            
+            // Enhanced vibration pattern for bottom-out events
+            if (navigator.vibrate) {
+                const pattern = suspensionData?.bottomOut ? 
+                    [300, 100, 300, 100, 300] : [200, 100, 200];
+                navigator.vibrate(pattern);
+            }
+            
+            // Log event with v1.4 physics data
+            const event = {
+                timestamp: Date.now(),
+                type: 'anomaly',
+                magnitude: magnitude,
+                position: { ...filteredPosition }, // Use filtered position
+                sensorData: { ...sensorData },
+                // v1.4 physics metrics
+                estimated_depth: suspensionData?.estimatedDepth || 0,
+                rider_id: riderId,
+                bottom_out: suspensionData?.bottomOut || false,
+                suspension_travel: suspensionData?.suspensionTravel || 0,
+                physics_confidence: suspensionData?.confidence || 0
+            };
+            
+            bufferEvent(event);
+            
+            // Hide alert after 2 seconds
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 2000);
+        }
+
+        // Web Audio API Synthesizer & Mission Control Functions
+        function initAudio() {
+            if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playBeep(freq = 440, type = 'sine', duration = 0.1, vol = 0.2) {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.warn('[Audio] Beep failed:', e);
+            }
+        }
+
+        function playImpactSound(isBottomOut = false) {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = isBottomOut ? 'sawtooth' : 'triangle';
+                const startFreq = isBottomOut ? 180 : 240;
+                osc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(isBottomOut ? 0.5 : 0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch (e) {
+                console.warn('[Audio] Impact sound failed:', e);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('audio-btn');
+            if (btn) {
+                btn.innerHTML = audioEnabled ? '<span class="glow-icon">🔊</span> AUDIO ON' : '<span class="glow-icon">🔇</span> AUDIO OFF';
+                btn.style.borderColor = audioEnabled ? '#00ffff' : '#ff4444';
+                btn.style.color = audioEnabled ? '#00ffff' : '#ff4444';
+            }
+            if (audioEnabled) playBeep(880, 'sine', 0.15, 0.2);
+        }
+
+        function updateMissionControl() {
+            const hitsEl = document.getElementById('mc-hits');
+            const depthEl = document.getElementById('mc-depth');
+            const gforceEl = document.getElementById('mc-gforce');
+            if (hitsEl) hitsEl.textContent = totalAnomalies;
+            if (depthEl) depthEl.innerHTML = `${maxDepthEncountered.toFixed(1)}<small>mm</small>`;
+            if (gforceEl) gforceEl.innerHTML = `${maxSeverity.toFixed(1)}<small>g</small>`;
+        }
+
+        function exportGeoJSON() {
+            playBeep(660, 'sine', 0.1, 0.2);
+            setTimeout(() => playBeep(880, 'sine', 0.15, 0.2), 100);
+
+            const features = [];
+
+            // Add trajectory path line
+            if (recordedWaypoints.length > 1) {
+                features.push({
+                    type: "Feature",
+                    properties: {
+                        name: "Rider Trajectory",
+                        rider_id: riderId,
+                        total_waypoints: recordedWaypoints.length
+                    },
+                    geometry: {
+                        type: "LineString",
+                        coordinates: recordedWaypoints.map(wp => [wp.lng, wp.lat])
+                    }
+                });
+            }
+
+            // Add anomaly points
+            const allAnomalies = offlineBuffer.concat(JSON.parse(localStorage.getItem('shadowmap_events') || '[]'));
+            allAnomalies.forEach((event, idx) => {
+                if (event.position && event.position.lat && event.position.lng) {
+                    features.push({
+                        type: "Feature",
+                        properties: {
+                            id: `anomaly_${idx}`,
+                            timestamp: new Date(event.timestamp).toISOString(),
+                            magnitude: event.magnitude,
+                            estimated_depth_mm: event.estimated_depth || 0,
+                            bottom_out: event.bottom_out || false,
+                            suspension_travel_pct: event.suspension_travel || 0,
+                            confidence: event.physics_confidence || 0
+                        },
+                        geometry: {
+                            type: "Point",
+                            coordinates: [event.position.lng, event.position.lat]
+                        }
+                    });
+                }
+            });
+
+            const geojson = {
+                type: "FeatureCollection",
+                metadata: {
+                    generated_at: new Date().toISOString(),
+                    app: "ShadowMap Lite v1.5.0",
+                    rider_id: riderId,
+                    total_anomalies: totalAnomalies,
+                    max_severity_g: maxSeverity,
+                    max_depth_mm: maxDepthEncountered
+                },
+                features: features
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geojson, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `shadowmap_mission_${Date.now()}.geojson`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // Buffer Event for Offline Storage
+        function bufferEvent(event) {
+            offlineBuffer.push(event);
+            
+            // Try to sync immediately if online
+            if (isOnline) {
+                syncEvents();
+            } else {
+                // Store in localStorage
+                localStorage.setItem('shadowmap_events', JSON.stringify(offlineBuffer));
+            }
+        }
+
+        // Sync Events to Backend
+        async function syncEvents() {
+            if (offlineBuffer.length === 0) return;
+            
+            try {
+                const response = await fetch('/api/event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        events: offlineBuffer,
+                        protocol: 'lean-rider-v1.3.0'
+                    })
+                });
+                
+                if (response.ok) {
+                    offlineBuffer = [];
+                    localStorage.removeItem('shadowmap_events');
+                    updateStatus('sync-status', 'active');
+                } else {
+                    updateStatus('sync-status', 'warning');
+                }
+            } catch (error) {
+                console.error('Sync error:', error);
+                updateStatus('sync-status', 'danger');
+            }
+        }
+
+        // Update Status Indicator
+        function updateStatus(elementId, status) {
+            const element = document.getElementById(elementId);
+            element.className = `status-indicator ${status}`;
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Online/Offline detection
+            window.addEventListener('online', () => {
+                isOnline = true;
+                updateSignalStatus();
+                syncEvents();
+            });
+            
+            window.addEventListener('offline', () => {
+                isOnline = false;
+                updateSignalStatus();
+            });
+            
+            // PWA Install prompt event
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                showInstallButton();
+            });
+            
+            // PWA install success
+            window.addEventListener('appinstalled', () => {
+                isPWAInstalled = true;
+                hideInstallButton();
+                console.log('[PWA] ShadowMap Lite installed successfully');
+            });
+            
+            // Page visibility change for wake lock
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && !wakeLock) {
+                    requestWakeLock();
+                }
+            });
+            
+            // Load buffered events from localStorage
+            const stored = localStorage.getItem('shadowmap_events');
+            if (stored) {
+                try {
+                    offlineBuffer = JSON.parse(stored);
+                } catch (error) {
+                    console.error('Error loading stored events:', error);
+                }
+            }
+        }
+
+        // v1.4 Physics Functions
+        
+        // Kalman Filter Implementation
+        function applyKalmanFilter() {
+            const dt = (Date.now() - kalmanState.lastUpdate) / 1000.0; // Convert to seconds
+            kalmanState.lastUpdate = Date.now();
+            
+            if (!kalmanState.initialized) {
+                // Initialize with first measurement
+                kalmanState.stateVector = [
+                    currentPosition.lat,
+                    currentPosition.lng,
+                    sensorData.speed / 3.6, // Convert km/h to m/s
+                    currentPosition.heading * Math.PI / 180 // Convert to radians
+                ];
+                kalmanState.initialized = true;
+            }
+            
+            // State transition matrix (constant velocity model)
+            const F = [
+                [1, 0, dt * Math.cos(kalmanState.stateVector[3]) / 111320, 0],
+                [0, 1, dt * Math.sin(kalmanState.stateVector[3]) / 111320, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]
+            ];
+            
+            // Process noise covariance
+            const Q = [
+                [0.01 * dt, 0, 0, 0],
+                [0, 0.01 * dt, 0, 0],
+                [0, 0, 0.1 * dt, 0],
+                [0, 0, 0, 0.1 * dt]
+            ];
+            
+            // Measurement matrix
+            const H = [
+                [1, 0, 0, 0],
+                [0, 1, 0, 0]
+            ];
+            
+            // Measurement noise covariance (GPS accuracy ~5m)
+            const R = [
+                [5.0 / 111320, 0], // Convert 5m to degrees latitude
+                [0, 5.0 / (111320 * Math.cos(currentPosition.lat * Math.PI / 180))] // Longitude
+            ];
+            
+            // Prediction step
+            kalmanState.stateVector = matrixMultiply(F, kalmanState.stateVector);
+            kalmanState.covariance = matrixAdd(
+                matrixMultiply(matrixMultiply(F, kalmanState.covariance), transpose(F)),
+                Q
+            );
+            
+            // Update step
+            const z = [currentPosition.lat, currentPosition.lng];
+            const y = vectorSubtract(z, matrixMultiply(H, kalmanState.stateVector));
+            const S = matrixAdd(
+                matrixMultiply(matrixMultiply(H, kalmanState.covariance), transpose(H)),
+                R
+            );
+            const K = matrixMultiply(
+                kalmanState.covariance,
+                matrixMultiply(transpose(H), matrixInverse(S))
+            );
+            
+            kalmanState.stateVector = vectorAdd(
+                kalmanState.stateVector,
+                matrixMultiply(K, y)
+            );
+            
+            const I_KH = matrixSubtract(
+                identityMatrix(4),
+                matrixMultiply(K, H)
+            );
+            kalmanState.covariance = matrixMultiply(I_KH, kalmanState.covariance);
+            
+            // Update filtered position
+            filteredPosition = {
+                lat: kalmanState.stateVector[0],
+                lng: kalmanState.stateVector[1],
+                velocity: kalmanState.stateVector[2],
+                heading: kalmanState.stateVector[3] * 180 / Math.PI, // Convert to degrees
+                confidence: 1.0 / (1.0 + matrixTrace(kalmanState.covariance))
+            };
+        }
+        
+        // Suspension Modeling Functions
+        function updateSuspensionModeling(accelZ, timestamp) {
+            // Add to acceleration buffer
+            accelZBuffer.push({ z: accelZ, timestamp: timestamp });
+            
+            // Keep only last 0.5 seconds of data (50 samples at 100Hz)
+            const cutoffTime = timestamp - 500;
+            accelZBuffer = accelZBuffer.filter(point => point.timestamp > cutoffTime);
+            
+            if (accelZBuffer.length < 10) {
+                return; // Need minimum data for integration
+            }
+            
+            // Extract acceleration values
+            const accelZValues = accelZBuffer.map(point => point.z);
+            
+            // Double integration for depth estimation
+            const depthData = estimateDepth(accelZValues);
+            
+            // Update suspension data
+            suspensionData.estimatedDepth = depthData.depth;
+            suspensionData.peakVelocity = depthData.peakVelocity;
+            suspensionData.bottomOut = depthData.bottomOut;
+            suspensionData.bottomOutSeverity = depthData.bottomOutSeverity;
+            suspensionData.suspensionTravel = depthData.suspensionTravel;
+            suspensionData.confidence = depthData.confidence;
+        }
+        
+        function estimateDepth(accelZSeries) {
+            const g = 9.81; // m/s^2
+            const dt = 0.01; // 100Hz sampling
+            
+            // Remove gravity from acceleration
+            const accelNet = accelZSeries.map(az => az - g);
+            
+            // First integration: velocity
+            const velocities = [0];
+            for (let i = 1; i < accelNet.length; i++) {
+                velocities.push(velocities[i-1] + accelNet[i] * dt);
+            }
+            
+            // Second integration: displacement
+            const displacements = [0];
+            for (let i = 1; i < velocities.length; i++) {
+                displacements.push(displacements[i-1] + velocities[i] * dt);
+            }
+            
+            // Find maximum displacement
+            const maxDisplacement = Math.max(...displacements.map(Math.abs));
+            const maxVelocity = Math.max(...velocities.map(Math.abs));
+            
+            // Convert to mm
+            const depthMm = maxDisplacement * 1000;
+            
+            // Bottom-out detection (Classic 350 thresholds)
+            const maxAccel = Math.max(...accelZSeries.map(Math.abs));
+            const frontThreshold = 3.5 * g; // Front suspension
+            const rearThreshold = 2.8 * g;  // Rear suspension
+            
+            const bottomOut = maxAccel > frontThreshold;
+            const bottomOutSeverity = Math.min(maxAccel / frontThreshold, 2.0) / 2.0;
+            
+            // Suspension travel percentage (130mm front travel)
+            const suspensionTravel = Math.min((depthMm / 130) * 100, 100);
+            
+            // Confidence calculation
+            let confidence = Math.min(depthMm / 50, 1.0); // Normalize to 50mm max
+            if (bottomOut) confidence *= 0.7; // Reduce confidence if bottomed out
+            
+            return {
+                depth: depthMm,
+                peakVelocity: maxVelocity,
+                bottomOut: bottomOut,
+                bottomOutSeverity: bottomOutSeverity,
+                suspensionTravel: suspensionTravel,
+                confidence: confidence
+            };
+        }
+        
+        function updateSuspensionDisplay() {
+            // Update suspension telemetry display
+            const depthElement = document.getElementById('suspension-depth');
+            const travelElement = document.getElementById('suspension-travel');
+            const bottomOutElement = document.getElementById('bottom-out-status');
+            
+            if (depthElement) {
+                depthElement.textContent = suspensionData.estimatedDepth.toFixed(1);
+            }
+            if (travelElement) {
+                travelElement.textContent = suspensionData.suspensionTravel.toFixed(1);
+            }
+            if (bottomOutElement) {
+                bottomOutElement.textContent = suspensionData.bottomOut ? 'YES' : 'NO';
+                bottomOutElement.style.color = suspensionData.bottomOut ? '#ff0000' : '#00ff00';
+            }
+        }
+        
+        // Matrix math helpers
+        function matrixMultiply(A, B) {
+            const result = [];
+            for (let i = 0; i < A.length; i++) {
+                result[i] = [];
+                for (let j = 0; j < B[0].length; j++) {
+                    let sum = 0;
+                    for (let k = 0; k < A[0].length; k++) {
+                        sum += A[i][k] * B[k][j];
+                    }
+                    result[i][j] = sum;
+                }
+            }
+            return result;
+        }
+        
+        function matrixAdd(A, B) {
+            return A.map((row, i) => row.map((val, j) => val + B[i][j]));
+        }
+        
+        function matrixSubtract(A, B) {
+            return A.map((row, i) => row.map((val, j) => val - B[i][j]));
+        }
+        
+        function transpose(A) {
+            return A[0].map((_, colIndex) => A.map(row => row[colIndex]));
+        }
+        
+        function matrixInverse(A) {
+            // Simple 2x2 matrix inverse for Kalman gain calculation
+            const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+            return [
+                [A[1][1] / det, -A[0][1] / det],
+                [-A[1][0] / det, A[0][0] / det]
+            ];
+        }
+        
+        function identityMatrix(n) {
+            const result = [];
+            for (let i = 0; i < n; i++) {
+                result[i] = [];
+                for (let j = 0; j < n; j++) {
+                    result[i][j] = i === j ? 1 : 0;
+                }
+            }
+            return result;
+        }
+        
+        function vectorAdd(a, b) {
+            return a.map((val, i) => val + b[i]);
+        }
+        
+        function vectorSubtract(a, b) {
+            return a.map((val, i) => val - b[i]);
+        }
+        
+        function matrixTrace(A) {
+            let trace = 0;
+            for (let i = 0; i < A.length; i++) {
+                trace += A[i][i];
+            }
+            return trace;
+        }
+        
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initApp);
+        
+        // PWA Service Worker Registration
+        async function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                try {
+                    serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js');
+                    console.log('[PWA] Service Worker registered:', serviceWorkerRegistration.scope);
+                    
+                    // Listen for service worker updates
+                    serviceWorkerRegistration.addEventListener('updatefound', () => {
+                        const newWorker = serviceWorkerRegistration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New version available
+                                console.log('[PWA] New version available');
+                                // Could show update notification here
+                            }
+                        });
+                    });
+                    
+                    return true;
+                } catch (error) {
+                    console.error('[PWA] Service Worker registration failed:', error);
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        // PWA Install Flow
+        function setupPWAInstallFlow() {
+            // Check if already installed
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                isPWAInstalled = true;
+                console.log('[PWA] App is running in standalone mode');
+            }
+            
+            // Setup install button
+            const installButton = document.getElementById('install-button');
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log('[PWA] Install prompt outcome:', outcome);
+                    deferredPrompt = null;
+                    hideInstallButton();
+                }
+            });
+        }
+        
+        function showInstallButton() {
+            if (!isPWAInstalled) {
+                document.getElementById('install-button').style.display = 'block';
+            }
+        }
+        
+        function hideInstallButton() {
+            document.getElementById('install-button').style.display = 'none';
+        }
+        
+        // Wake Lock API
+        async function setupWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    await requestWakeLock();
+                    console.log('[PWA] Wake Lock activated');
+                } catch (error) {
+                    console.error('[PWA] Wake Lock failed:', error);
+                }
+            } else {
+                console.log('[PWA] Wake Lock API not supported');
+            }
+        }
+        
+        async function requestWakeLock() {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                
+                wakeLock.addEventListener('release', () => {
+                    console.log('[PWA] Wake Lock released');
+                    wakeLock = null;
+                });
+                
+                return wakeLock;
+            } catch (error) {
+                console.error('[PWA] Wake Lock request failed:', error);
+                return null;
+            }
+        }
+        
+        // Network Monitoring
+        function setupNetworkMonitoring() {
+            updateSignalStatus();
+            
+            // Monitor connection quality
+            if ('connection' in navigator) {
+                const connection = navigator.connection;
+                
+                connection.addEventListener('change', () => {
+                    updateSignalStatus();
+                    console.log('[PWA] Connection changed:', {
+                        effectiveType: connection.effectiveType,
+                        downlink: connection.downlink,
+                        rtt: connection.rtt
+                    });
+                });
+            }
+        }
+        
+        function updateSignalStatus() {
+            const signalStatus = document.getElementById('signal-status');
+            
+            if (!isOnline) {
+                updateStatus('signal-status', 'danger');
+                return;
+            }
+            
+            if ('connection' in navigator) {
+                const connection = navigator.connection;
+                const effectiveType = connection.effectiveType;
+                
+                switch (effectiveType) {
+                    case '4g':
+                        updateStatus('signal-status', 'active');
+                        break;
+                    case '3g':
+                        updateStatus('signal-status', 'warning');
+                        break;
+                    case '2g':
+                    case 'slow-2g':
+                        updateStatus('signal-status', 'danger');
+                        break;
+                    default:
+                        updateStatus('signal-status', 'active');
+                }
+            } else {
+                // Fallback to basic online/offline
+                updateStatus('signal-status', isOnline ? 'active' : 'danger');
+            }
+        }
+        
+        // Enhanced Sync with Service Worker
+        async function syncEvents() {
+            if (offlineBuffer.length === 0) return;
+            
+            try {
+                // Try background sync first
+                if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype && serviceWorkerRegistration) {
+                    await serviceWorkerRegistration.sync.register('telemetry-sync');
+                    console.log('[PWA] Background sync registered');
+                    updateStatus('sync-status', 'active');
+                } else {
+                    // Fallback to direct sync
+                    await directSyncEvents();
+                }
+            } catch (error) {
+                console.error('[PWA] Sync error:', error);
+                updateStatus('sync-status', 'danger');
+            }
+        }
+        
+        async function directSyncEvents() {
+            try {
+                const response = await fetch('/api/event', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        events: offlineBuffer,
+                        protocol: 'lean-rider-v1.3.0'
+                    })
+                });
+                
+                if (response.ok) {
+                    offlineBuffer = [];
+                    localStorage.removeItem('shadowmap_events');
+                    updateStatus('sync-status', 'active');
+                    console.log('[PWA] Direct sync successful');
+                } else {
+                    updateStatus('sync-status', 'warning');
+                }
+            } catch (error) {
+                console.error('[PWA] Direct sync error:', error);
+                updateStatus('sync-status', 'danger');
+            }
+        }
+    </script>
 </body>
 </html>

@@ -4,6 +4,12 @@ ShadowMap v1.4 Simple API Test
 Direct test of physics fields without signal processing
 """
 
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import requests
 import json
 
@@ -153,7 +159,7 @@ def test_database_direct():
             print(f"✅ Test anomaly created with ID: {test_anomaly.id}")
             
             # Test if we can retrieve and verify physics fields
-            retrieved = Anomaly.query.get(test_anomaly.id)
+            retrieved = db.session.get(Anomaly, test_anomaly.id)
             print(f"✅ Retrieved anomaly from database")
             print(f"  Estimated Depth: {retrieved.estimated_depth} mm")
             print(f"  Rider ID: {retrieved.rider_id}")

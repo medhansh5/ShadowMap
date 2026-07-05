@@ -4,6 +4,12 @@ ShadowMap v1.4 Physics Test Suite
 Tests Kalman filtering and suspension modeling
 """
 
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import numpy as np
 import math
 from datetime import datetime
@@ -71,7 +77,7 @@ def test_suspension_modeling():
     print(f"  Peak velocity: {depth_result['peak_velocity_ms']:.2f} m/s")
     print(f"  Bottom out: {depth_result['bottom_out']}")
     print(f"  Bottom out severity: {depth_result['bottom_out_severity']:.2f}")
-    print(f"  Suspension travel: {depth_result['confidence']:.2f}%")
+    print(f"  Suspension travel: {sm.get_suspension_travel_percentage(depth_result['estimated_depth_mm']):.1f}%")
     print(f"  Confidence: {depth_result['confidence']:.2f}")
     print()
     

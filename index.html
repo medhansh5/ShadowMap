@@ -8,11 +8,16 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
+    <!-- Google Fonts: Orbitron & Share Tech Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
     <!-- Theme Color -->
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#05050a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     
@@ -24,12 +29,13 @@
         }
 
         body {
-            font-family: 'Courier New', monospace;
-            background: #000000;
-            color: #00ff00;
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            background: #05050a;
+            color: #00ff66;
             overflow: hidden;
             height: 100vh;
             position: relative;
+            text-shadow: 0 0 5px rgba(0, 255, 102, 0.5);
         }
 
         /* Map Container */
@@ -282,6 +288,134 @@
         .telemetry-line {
             margin: 2px 0;
         }
+
+        /* Cyberpunk Glassmorphism & Neon Upgrades */
+        .speedometer, .telemetry, .traction-bar, .grip-meter {
+            background: rgba(10, 15, 25, 0.65) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(0, 255, 102, 0.6) !important;
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.25), inset 0 0 15px rgba(0, 255, 102, 0.1) !important;
+            border-radius: 12px !important;
+        }
+
+        .speed-value {
+            font-family: 'Orbitron', sans-serif !important;
+        }
+
+        /* Mission Control Panel */
+        .mission-control {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            width: 260px;
+            background: rgba(5, 10, 20, 0.75);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2), inset 0 0 15px rgba(0, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 30;
+            font-family: 'Share Tech Mono', monospace;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+
+        .mission-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            margin-bottom: 12px;
+            border-bottom: 1px dashed rgba(0, 255, 255, 0.4);
+            padding-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .mission-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            background: rgba(0, 255, 102, 0.1);
+            border: 1px solid rgba(0, 255, 102, 0.4);
+            border-radius: 6px;
+            padding: 6px 4px;
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 10px;
+            color: #88ffbb;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+
+        .stat-val {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #00ff66;
+            text-shadow: 0 0 8px #00ff66;
+        }
+
+        .stat-val small {
+            font-size: 9px;
+            margin-left: 1px;
+        }
+
+        .mission-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .cyber-btn {
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.2), rgba(0, 255, 102, 0.2));
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 8px 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-shadow: 0 0 5px #00ffff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .cyber-btn:hover {
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.4), rgba(0, 255, 102, 0.4));
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .cyber-btn:active {
+            transform: translateY(1px);
+        }
+
+        @keyframes glitch-flicker {
+            0%, 100% { opacity: 1; }
+            92% { opacity: 1; }
+            94% { opacity: 0.4; transform: translate(-1px, 1px); }
+            96% { opacity: 1; transform: translate(1px, -1px); }
+            98% { opacity: 0.8; }
+        }
+
+        .speedometer {
+            animation: glitch-flicker 12s infinite;
+        }
     </style>
 </head>
 <body>
@@ -303,6 +437,29 @@
         <button class="install-button" id="install-button" style="display: none;">
             INSTALL HUD
         </button>
+
+        <!-- Mission Control Panel -->
+        <div class="mission-control">
+            <div class="mission-title">⚡ MISSION CONTROL</div>
+            <div class="mission-stats">
+                <div class="stat-box">
+                    <span class="stat-label">HITS</span>
+                    <span class="stat-val" id="mc-hits">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">MAX DEPTH</span>
+                    <span class="stat-val" id="mc-depth">0.0<small>mm</small></span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">MAX G-FORCE</span>
+                    <span class="stat-val" id="mc-gforce">0.0<small>g</small></span>
+                </div>
+            </div>
+            <div class="mission-actions">
+                <button class="cyber-btn" onclick="exportGeoJSON()"><span class="glow-icon">📥</span> EXPORT GEOJSON</button>
+                <button class="cyber-btn audio-toggle" id="audio-btn" onclick="toggleAudio()"><span class="glow-icon">🔊</span> AUDIO ON</button>
+            </div>
+        </div>
 
         <!-- Speedometer -->
         <div class="speedometer">
@@ -423,6 +580,14 @@
         };
         
         let offlineBuffer = [];
+        
+        // Mission Control & Audio Telemetry Variables
+        let totalAnomalies = 0;
+        let maxSeverity = 0.0;
+        let maxDepthEncountered = 0.0;
+        let recordedWaypoints = [];
+        let audioCtx = null;
+        let audioEnabled = true;
 
         // Initialize Application
         async function initApp() {
@@ -615,6 +780,13 @@
             // Apply Kalman Filter for smooth tracking
             applyKalmanFilter();
             
+            recordedWaypoints.push({
+                lat: filteredPosition.lat,
+                lng: filteredPosition.lng,
+                timestamp: Date.now(),
+                speed: sensorData.speed
+            });
+            
             updateMap();
             updateSpeedometer();
             updateStatus('gps-status', 'active');
@@ -644,30 +816,26 @@
 
         // Update Grip Meter
         function updateGripMeter() {
-            const maxLeanAngle = 45; // Maximum expected lean angle
-            const normalizedLean = Math.min(sensorData.leanAngle / maxLeanAngle, 1.0);
+            // Convert grip used (0-1.0) to arc path (0-180 deg)
+            const percentage = Math.min(sensorData.gripUsed * 100, 100);
+            document.getElementById('grip-value').textContent = `${Math.round(sensorData.leanAngle)}°`;
             
-            // Update SVG arc
-            const startAngle = 180;
-            const endAngle = startAngle + (normalizedLean * 180);
-            const largeArcFlag = normalizedLean > 0.5 ? 1 : 0;
-            
-            const x1 = 75 + 50 * Math.cos((startAngle * Math.PI) / 180);
-            const y1 = 75 + 50 * Math.sin((startAngle * Math.PI) / 180);
-            const x2 = 75 + 50 * Math.cos((endAngle * Math.PI) / 180);
-            const y2 = 75 + 50 * Math.sin((endAngle * Math.PI) / 180);
-            
-            const pathData = `M ${x1} ${y1} A 50 50 0 ${largeArcFlag} 1 ${x2} ${y2}`;
-            document.getElementById('grip-arc-fill').setAttribute('d', pathData);
-            
-            document.getElementById('grip-value').textContent = `${sensorData.leanAngle.toFixed(1)}°`;
+            // Update arc fill (simple approximation by changing dasharray or color)
+            const fill = document.getElementById('grip-arc-fill');
+            if (percentage > 80) {
+                fill.setAttribute('stroke', '#ff0000'); // Danger
+            } else if (percentage > 50) {
+                fill.setAttribute('stroke', '#ffff00'); // Warning
+            } else {
+                fill.setAttribute('stroke', '#00ffff'); // Normal
+            }
         }
 
         // Update Traction Bar
         function updateTractionBar() {
-            const gripPercent = Math.min(sensorData.gripUsed * 50, 100); // Convert to percentage
-            document.getElementById('traction-fill').style.width = `${gripPercent}%`;
-            document.getElementById('traction-percent').textContent = Math.round(gripPercent);
+            const percentage = Math.min(Math.round(sensorData.gripUsed * 100), 100);
+            document.getElementById('traction-percent').textContent = percentage;
+            document.getElementById('traction-fill').style.width = `${percentage}%`;
         }
 
         // Update Telemetry Display
@@ -690,6 +858,12 @@
         function triggerAnomaly(magnitude, suspensionData = null) {
             const alert = document.getElementById('anomaly-alert');
             alert.style.display = 'block';
+            
+            totalAnomalies++;
+            maxSeverity = Math.max(maxSeverity, magnitude);
+            maxDepthEncountered = Math.max(maxDepthEncountered, suspensionData?.estimatedDepth || 0);
+            updateMissionControl();
+            playImpactSound(suspensionData?.bottomOut);
             
             // Enhanced vibration pattern for bottom-out events
             if (navigator.vibrate) {
@@ -719,6 +893,150 @@
             setTimeout(() => {
                 alert.style.display = 'none';
             }, 2000);
+        }
+
+        // Web Audio API Synthesizer & Mission Control Functions
+        function initAudio() {
+            if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playBeep(freq = 440, type = 'sine', duration = 0.1, vol = 0.2) {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.warn('[Audio] Beep failed:', e);
+            }
+        }
+
+        function playImpactSound(isBottomOut = false) {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = isBottomOut ? 'sawtooth' : 'triangle';
+                const startFreq = isBottomOut ? 180 : 240;
+                osc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+                
+                gain.gain.setValueAtTime(isBottomOut ? 0.5 : 0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch (e) {
+                console.warn('[Audio] Impact sound failed:', e);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('audio-btn');
+            if (btn) {
+                btn.innerHTML = audioEnabled ? '<span class="glow-icon">🔊</span> AUDIO ON' : '<span class="glow-icon">🔇</span> AUDIO OFF';
+                btn.style.borderColor = audioEnabled ? '#00ffff' : '#ff4444';
+                btn.style.color = audioEnabled ? '#00ffff' : '#ff4444';
+            }
+            if (audioEnabled) playBeep(880, 'sine', 0.15, 0.2);
+        }
+
+        function updateMissionControl() {
+            const hitsEl = document.getElementById('mc-hits');
+            const depthEl = document.getElementById('mc-depth');
+            const gforceEl = document.getElementById('mc-gforce');
+            if (hitsEl) hitsEl.textContent = totalAnomalies;
+            if (depthEl) depthEl.innerHTML = `${maxDepthEncountered.toFixed(1)}<small>mm</small>`;
+            if (gforceEl) gforceEl.innerHTML = `${maxSeverity.toFixed(1)}<small>g</small>`;
+        }
+
+        function exportGeoJSON() {
+            playBeep(660, 'sine', 0.1, 0.2);
+            setTimeout(() => playBeep(880, 'sine', 0.15, 0.2), 100);
+
+            const features = [];
+
+            // Add trajectory path line
+            if (recordedWaypoints.length > 1) {
+                features.push({
+                    type: "Feature",
+                    properties: {
+                        name: "Rider Trajectory",
+                        rider_id: riderId,
+                        total_waypoints: recordedWaypoints.length
+                    },
+                    geometry: {
+                        type: "LineString",
+                        coordinates: recordedWaypoints.map(wp => [wp.lng, wp.lat])
+                    }
+                });
+            }
+
+            // Add anomaly points
+            const allAnomalies = offlineBuffer.concat(JSON.parse(localStorage.getItem('shadowmap_events') || '[]'));
+            allAnomalies.forEach((event, idx) => {
+                if (event.position && event.position.lat && event.position.lng) {
+                    features.push({
+                        type: "Feature",
+                        properties: {
+                            id: `anomaly_${idx}`,
+                            timestamp: new Date(event.timestamp).toISOString(),
+                            magnitude: event.magnitude,
+                            estimated_depth_mm: event.estimated_depth || 0,
+                            bottom_out: event.bottom_out || false,
+                            suspension_travel_pct: event.suspension_travel || 0,
+                            confidence: event.physics_confidence || 0
+                        },
+                        geometry: {
+                            type: "Point",
+                            coordinates: [event.position.lng, event.position.lat]
+                        }
+                    });
+                }
+            });
+
+            const geojson = {
+                type: "FeatureCollection",
+                metadata: {
+                    generated_at: new Date().toISOString(),
+                    app: "ShadowMap Lite v1.5.0",
+                    rider_id: riderId,
+                    total_anomalies: totalAnomalies,
+                    max_severity_g: maxSeverity,
+                    max_depth_mm: maxDepthEncountered
+                },
+                features: features
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geojson, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `shadowmap_mission_${Date.now()}.geojson`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
         }
 
         // Buffer Event for Offline Storage

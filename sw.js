@@ -1,11 +1,14 @@
-const CACHE_NAME = 'shadowmap-lite-v1.3.0';
-const STATIC_CACHE = 'shadowmap-static-v1.3.0';
-const MAP_CACHE = 'shadowmap-maps-v1.3.0';
+const CACHE_NAME = 'shadowmap-lite-v1.5.0';
+const STATIC_CACHE = 'shadowmap-static-v1.5.0';
+const MAP_CACHE = 'shadowmap-maps-v1.5.0';
 
 // Core assets to cache for offline functionality
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/manifest.json',
+  '/static/js/map.js',
+  '/static/js/proximity-worker.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
@@ -67,8 +70,12 @@ self.addEventListener('fetch', (event) => {
   // Handle different request types
   if (request.method === 'GET') {
     // Static assets - cache first strategy
-    if (STATIC_ASSETS.some(asset => request.url.includes(asset)) || 
-        request.url.includes('leaflet')) {
+    const isStaticAsset = STATIC_ASSETS.some(asset => {
+      if (asset === '/') return url.pathname === '/';
+      return url.pathname === asset || url.href === asset;
+    }) || request.url.includes('leaflet') || url.pathname.startsWith('/static/');
+
+    if (isStaticAsset) {
       event.respondWith(
         caches.open(STATIC_CACHE)
           .then((cache) => {
